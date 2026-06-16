@@ -1,4 +1,6 @@
 import React from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import './LeadMap.css';
 
 function LeadMap({ leads = [] }) {
@@ -15,6 +17,21 @@ function LeadMap({ leads = [] }) {
     .sort((a, b) => b.overall_score - a.overall_score)
     .slice(0, 8);
 
+  const mappableLeads = leads.filter(l => {
+    const lat = Number(l.latitude);
+    const lng = Number(l.longitude);
+    return Number.isFinite(lat) && Number.isFinite(lng);
+  });
+
+  const mapCenter = mappableLeads.length
+    ? [
+        mappableLeads.reduce((sum, l) => sum + Number(l.latitude), 0) / mappableLeads.length,
+        mappableLeads.reduce((sum, l) => sum + Number(l.longitude), 0) / mappableLeads.length
+      ]
+    : [39.5, -98.35];
+
+  const mapZoom = mappableLeads.length > 0 ? (mappableLeads.length === 1 ? 10 : 5) : 4;
+
   const maxCount = Math.max(...Object.values(stateCount), 1);
 
   const getScoreColor = (score) => {
@@ -25,13 +42,45 @@ function LeadMap({ leads = [] }) {
 
   return (
     <div className="lead-map">
-      <div className="map-placeholder">
+      <div className="map-shell">
         <div className="map-header">
           <div className="map-title">📡 Lead Distribution Map</div>
           <p className="map-note">
-            Integrate Mapbox GL or Leaflet for interactive map.
-            Geographic coverage shown below.
+            Interactive map powered by Leaflet and OpenStreetMap.
+            {mappableLeads.length === 0 ? ' No geocoded leads yet.' : ` Showing ${mappableLeads.length} geocoded leads.`}
           </p>
+        </div>
+
+        <div className="lead-map-canvas">
+          <MapContainer center={mapCenter} zoom={mapZoom} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+            <TileLayer
+              attribution='&copy; OpenStreetMap contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            {mappableLeads.map((lead, i) => (
+              <CircleMarker
+                key={lead.id || lead.source_id || i}
+                center={[Number(lead.latitude), Number(lead.longitude)]}
+                radius={Math.max(6, Math.min(12, Math.round((lead.overall_score || 0) / 10)))}
+                pathOptions={{
+                  color: getScoreColor(lead.overall_score || 0),
+                  fillColor: getScoreColor(lead.overall_score || 0),
+                  fillOpacity: 0.5,
+                  weight: 1.5
+                }}
+              >
+                <Popup>
+                  <div className="map-popup">
+                    <strong>{lead.name}</strong>
+                    <div>{lead.city}, {lead.state}</div>
+                    <div>Score: {lead.overall_score ?? 'N/A'}</div>
+                    {lead.business_type ? <div>Type: {lead.business_type}</div> : null}
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
+          </MapContainer>
         </div>
 
         {/* Summary stats */}

@@ -127,6 +127,26 @@
   width: 100%;
 }
 
+.search-feedback-strip {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--gray-100);
+  background: #f8fafc;
+  font-size: 0.82rem;
+  color: var(--gray-700);
+}
+
+.search-feedback-ok {
+  color: #1e293b;
+}
+
+.search-feedback-error {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .search-form {
   display: flex;
   gap: 8px;

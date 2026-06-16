@@ -10,6 +10,7 @@ function Dashboard() {
   const [filteredLeads, setFilteredLeads] = useState([]);
   const [stats, setStats] = useState(null);
   const [apiStatus, setApiStatus] = useState({ loading: true, mapsConfigured: false, yelpConfigured: false });
+  const [searchFeedback, setSearchFeedback] = useState({ error: '', diagnostics: null, mode: '' });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
 
@@ -118,6 +119,7 @@ function Dashboard() {
     if (!searchTerm.trim()) return;
 
     setLoading(true);
+    setSearchFeedback({ error: '', diagnostics: null, mode: searchMode });
     try {
       const params = new URLSearchParams({ q: searchTerm.trim(), minScore: String(minScore) });
 
@@ -141,8 +143,14 @@ function Dashboard() {
       }
 
       setLeads(data.results || []);
+      setSearchFeedback({
+        error: '',
+        diagnostics: searchMode === 'live' ? (data.diagnostics || null) : null,
+        mode: searchMode
+      });
     } catch (error) {
       console.error('Error searching:', error);
+      setSearchFeedback({ error: error.message || 'Search failed', diagnostics: null, mode: searchMode });
     } finally {
       setLoading(false);
     }
@@ -231,7 +239,7 @@ function Dashboard() {
           <div className="filter-group">
             <label>Search Mode:</label>
             <select value={searchMode} onChange={(e) => setSearchMode(e.target.value)} className="filter-select">
-              <option value="live">Live Discovery (Google + Yelp)</option>
+              <option value="live">Live Discovery (Google Maps)</option>
               <option value="db">Saved Leads (Database)</option>
             </select>
           </div>
@@ -271,6 +279,24 @@ function Dashboard() {
           </button>
         </div>
       </div>
+
+      {(searchFeedback.error || (searchFeedback.mode === 'live' && searchFeedback.diagnostics)) && (
+        <div className="search-feedback-strip">
+          {searchFeedback.error ? (
+            <div className="search-feedback-error">
+              Search error: {searchFeedback.error}
+            </div>
+          ) : (
+            <div className="search-feedback-ok">
+              <strong>Live diagnostics:</strong>
+              {' terms='}{searchFeedback.diagnostics?.terms?.length || 0}
+              {' | googleCount='}{searchFeedback.diagnostics?.googleCount || 0}
+              {' | state='}{searchFeedback.diagnostics?.location || 'N/A'}
+              {filteredLeads.length === 0 ? ' | tip: set Min Score to 0 or try "loves travel stop".' : ''}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="dashboard-tabs">

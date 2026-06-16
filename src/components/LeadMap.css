@@ -2,11 +2,21 @@
 
 .lead-map { width: 100%; }
 
-.map-placeholder {
+.map-shell {
   background: var(--white);
   border: 2px solid var(--gray-100);
   border-radius: 14px;
   overflow: hidden;
+}
+
+.lead-map-canvas {
+  height: 360px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.map-popup {
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .map-header {
@@ -159,6 +169,7 @@
 }
 
 @media (max-width: 640px) {
+  .lead-map-canvas { height: 300px; }
   .map-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .map-panels { grid-template-columns: 1fr; }
   .panel { border-right: none; border-bottom: 1px solid var(--gray-100); }
