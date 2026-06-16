@@ -1,0 +1,45 @@
+/* VetElecTech Lead Finder — Global Styles */
+/* Brand: Navy Blue (#0f2044), Gold (#c9a227), White */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --navy:       #0f2044;
+  --navy-light: #1a3366;
+  --navy-dark:  #091530;
+  --gold:       #c9a227;
+  --gold-light: #e2bb45;
+  --gold-pale:  #f5e8b0;
+  --white:      #ffffff;
+  --off-white:  #f4f6fa;
+  --gray-100:   #e8ecf2;
+  --gray-300:   #c0c9d8;
+  --gray-500:   #7a8aa0;
+  --gray-700:   #3d4f66;
+  --green:      #16a34a;
+  --amber:      #d97706;
+  --red:        #dc2626;
+  --font-main:  'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+html, body {
+  font-family: var(--font-main);
+  background-color: var(--off-white);
+  color: var(--navy);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  min-height: 100vh;
+  background: var(--off-white);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--gray-100); }
+::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius: 3px; }

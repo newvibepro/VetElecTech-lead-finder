@@ -1,0 +1,165 @@
+/* LeadMap — VetElecTech Lead Finder */
+
+.lead-map { width: 100%; }
+
+.map-placeholder {
+  background: var(--white);
+  border: 2px solid var(--gray-100);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.map-header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--gold);
+}
+
+.map-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 4px;
+}
+
+.map-note {
+  font-size: 0.8rem;
+  color: var(--gold-light);
+}
+
+.map-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.map-stat {
+  padding: 18px;
+  text-align: center;
+  border-right: 1px solid var(--gray-100);
+}
+.map-stat:last-child { border-right: none; }
+
+.map-stat-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.map-stat-label {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 3px;
+}
+
+.map-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.panel {
+  padding: 20px 24px;
+  border-right: 1px solid var(--gray-100);
+}
+.panel:last-child { border-right: none; }
+
+.panel h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* State bars */
+.state-list { display: flex; flex-direction: column; gap: 8px; }
+
+.state-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.state-name {
+  width: 30px;
+  font-weight: 700;
+  color: var(--navy);
+  flex-shrink: 0;
+}
+
+.state-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--gray-100);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.state-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--navy) 0%, var(--navy-light) 100%);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.state-count {
+  width: 24px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--gray-700);
+}
+
+/* Top leads list */
+.top-leads-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+.top-lead-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.rank {
+  width: 28px;
+  font-weight: 700;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.lead-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.lead-name {
+  font-weight: 600;
+  color: var(--navy);
+  font-size: 0.82rem;
+}
+
+.lead-loc {
+  font-size: 0.73rem;
+  color: var(--gray-500);
+}
+
+.lead-score {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--white);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .map-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .map-panels { grid-template-columns: 1fr; }
+  .panel { border-right: none; border-bottom: 1px solid var(--gray-100); }
+}
