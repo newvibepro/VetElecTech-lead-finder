@@ -47,7 +47,12 @@ function Dashboard() {
       filtered = filtered.filter(l => l.state === selectedState);
     }
     if (minScore > 0) {
-      filtered = filtered.filter(l => l.overall_score >= minScore);
+      filtered = filtered.filter(l => {
+        const score = searchMode === 'live'
+          ? (l.live_fit_score ?? l.overall_score ?? 0)
+          : (l.overall_score ?? 0);
+        return score >= minScore;
+      });
     }
     if (selectedIndustry) {
       filtered = filtered.filter(l =>
@@ -266,14 +271,18 @@ function Dashboard() {
 
           <div className="filter-group">
             <label>Min Score:</label>
-            <select value={minScore} onChange={(e) => setMinScore(parseInt(e.target.value))} className="filter-select">
-              <option value="0">All Scores</option>
-              <option value="50">50+</option>
-              <option value="60">60+</option>
-              <option value="70">70+ (Hot)</option>
-              <option value="80">80+ (Priority)</option>
-              <option value="90">90+ (Top Tier)</option>
-            </select>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={minScore}
+              onChange={(e) => {
+                const next = Number.parseInt(e.target.value || '0', 10);
+                setMinScore(Number.isFinite(next) ? Math.max(0, Math.min(100, next)) : 0);
+              }}
+              className="filter-select"
+            />
           </div>
 
           <button onClick={exportAsCSV} className="btn btn-secondary">

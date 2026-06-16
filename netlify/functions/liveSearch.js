@@ -9,6 +9,7 @@
 const GoogleMapsScraper = require('../../scripts/lib/googleMapsScraper');
 const YelpScraper = require('../../scripts/lib/yelpScraper');
 const ScoringEngine = require('../../scripts/lib/scorer');
+const DatabaseManager = require('../../scripts/lib/db');
 
 const STATE_LOCATIONS = {
   TX: 'Austin, TX',
@@ -186,7 +187,10 @@ exports.handler = async (event) => {
       sources: sourceFlags,
       location,
       googleCount: 0,
-      yelpCount: 0
+      yelpCount: 0,
+      saveEnabled: Boolean(process.env.SUPABASE_SERVICE_KEY),
+      savedCount: 0,
+      saveErrors: 0
     };
 
     if (sourceFlags.maps && hasMapsKey) {
@@ -241,6 +245,20 @@ exports.handler = async (event) => {
       })
       .sort((a, b) => b.live_fit_score - a.live_fit_score)
       .slice(0, finalLimit);
+
+    // Persist live-discovered leads so DB mode can reuse results.
+    if (process.env.SUPABASE_SERVICE_KEY) {
+      const db = new DatabaseManager();
+      for (const lead of ranked) {
+        try {
+          await db.upsertLead(lead);
+          diagnostics.savedCount += 1;
+        } catch (error) {
+          diagnostics.saveErrors += 1;
+          console.error('liveSearch save error:', error.message);
+        }
+      }
+    }
 
     return {
       statusCode: 200,
