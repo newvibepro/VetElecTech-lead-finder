@@ -9,25 +9,34 @@ function Dashboard() {
   const [leads, setLeads] = useState([]);
   const [filteredLeads, setFilteredLeads] = useState([]);
   const [stats, setStats] = useState(null);
+  const [apiStatus, setApiStatus] = useState({ loading: true, mapsConfigured: false, yelpConfigured: false });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchMode, setSearchMode] = useState('live');
   const [selectedState, setSelectedState] = useState('');
   const [minScore, setMinScore] = useState(0);
   const [selectedIndustry, setSelectedIndustry] = useState('');
 
-  const targetStates = ['TX', 'FL', 'GA', 'NC', 'TN', 'VA', 'AL', 'SC', 'OK', 'LA',
-                        'MS', 'AR', 'KY', 'WV', 'MT', 'ND', 'SD', 'WY', 'ID', 'NE'];
+  const targetStates = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  ];
 
   const industries = [
     'hospital', 'manufacturing', 'financial', 'hotel', 'school',
-    'government', 'construction', 'agriculture', 'logistics', 'data_center'
+    'government', 'construction', 'agriculture', 'logistics', 'data_center',
+    'oil_gas', 'gas_station'
   ];
 
   useEffect(() => {
     fetchTopLeads();
     fetchStats();
+    fetchApiStatus();
   }, []);
 
   useEffect(() => {
@@ -79,15 +88,58 @@ function Dashboard() {
     }
   };
 
+  const fetchApiStatus = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/getApiStatus');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Unable to fetch API status');
+
+      setApiStatus({
+        loading: false,
+        mapsConfigured: Boolean(data.mapsConfigured),
+        yelpConfigured: Boolean(data.yelpConfigured)
+      });
+    } catch (error) {
+      console.error('Error fetching API status:', error);
+      setApiStatus({ loading: false, mapsConfigured: false, yelpConfigured: false });
+    }
+  };
+
+  const liveConfigured = apiStatus.mapsConfigured || apiStatus.yelpConfigured;
+  const liveStatusText = apiStatus.loading
+    ? 'Checking keys...'
+    : (liveConfigured ? `Live API Ready${apiStatus.mapsConfigured && !apiStatus.yelpConfigured ? ' (Maps only)' : ''}` : 'Live API Missing Keys');
+  const liveStatusClass = apiStatus.loading
+    ? 'api-status-loading'
+    : (liveConfigured ? 'api-status-ready' : 'api-status-missing');
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
 
     setLoading(true);
     try {
-      const url = `/.netlify/functions/searchLeads?q=${encodeURIComponent(searchTerm)}&minScore=${minScore}`;
+      const params = new URLSearchParams({ q: searchTerm.trim(), minScore: String(minScore) });
+
+      if (selectedState) params.set('state', selectedState);
+
+      let endpoint = '/.netlify/functions/searchLeads';
+
+      if (searchMode === 'live') {
+        endpoint = '/.netlify/functions/liveSearch';
+        params.set('limit', '80');
+        params.set('maxTerms', '3');
+        params.set('sources', 'maps');
+      }
+
+      const url = `${endpoint}?${params.toString()}`;
       const response = await fetch(url);
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Search failed');
+      }
+
       setLeads(data.results || []);
     } catch (error) {
       console.error('Error searching:', error);
@@ -135,6 +187,10 @@ function Dashboard() {
             </div>
           </div>
           <div className="header-stats">
+            <div className={`api-status-pill ${liveStatusClass}`}>
+              <Wifi size={14} />
+              <span>{liveStatusText}</span>
+            </div>
             <div className="stat-card">
               <div className="stat-number">{leads.length}</div>
               <div className="stat-label">Leads Found</div>
@@ -160,18 +216,26 @@ function Dashboard() {
         <form onSubmit={handleSearch} className="search-form">
           <input
             type="text"
-            placeholder="Search business name, city..."
+            placeholder={searchMode === 'live' ? 'Live discover: hospital, warehouse, rural clinic...' : 'Search saved leads by name, type, city...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
           <button type="submit" className="btn btn-primary" disabled={loading}>
             <Search size={17} />
-            {loading ? 'Searching...' : 'Search'}
+            {loading ? 'Searching...' : (searchMode === 'live' ? 'Live Search' : 'DB Search')}
           </button>
         </form>
 
         <div className="filters">
+          <div className="filter-group">
+            <label>Search Mode:</label>
+            <select value={searchMode} onChange={(e) => setSearchMode(e.target.value)} className="filter-select">
+              <option value="live">Live Discovery (Google + Yelp)</option>
+              <option value="db">Saved Leads (Database)</option>
+            </select>
+          </div>
+
           <div className="filter-group">
             <label>State:</label>
             <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} className="filter-select">

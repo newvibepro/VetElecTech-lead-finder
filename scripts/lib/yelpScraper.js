@@ -13,7 +13,8 @@ const TARGET_YELP_CATEGORIES = [
   'banks', 'financialadvising', 'insurance',
   'contractors', 'generativecontractors', 'electricians',
   'publicschools', 'universities', 'adulteduc',
-  'government'
+  'government',
+  'servicestations', 'convenience', 'oilchangestations'
 ].join(',');
 
 class YelpScraper {

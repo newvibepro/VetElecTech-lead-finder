@@ -129,6 +129,36 @@ Scraper (Node CLI — run locally or on schedule)
 
 ---
 
+## Live Discovery API
+
+Use this endpoint to discover and score fresh leads on demand (without waiting for a full scrape):
+
+```bash
+GET /.netlify/functions/liveSearch?q=hospital network&state=TX&minScore=60&limit=40&maxTerms=3&sources=all
+```
+
+Query params:
+- `q` (required): Base search term from user input
+- `state` (optional): Two-letter state filter (`TX`, `FL`, etc.)
+- `minScore` (optional): Minimum `live_fit_score` to return (0–100)
+- `limit` (optional): Max results returned (1–100)
+- `maxTerms` (optional): Max expanded search terms to run (1–6)
+- `sources` (optional): `all`, `maps`, or `yelp`
+- `extraTerms` (optional): Comma-separated custom terms to inject
+
+Response fields include:
+- `live_fit_score` (blended rank)
+- `connectivity_cost_pressure_score` (signals poor connectivity/speed-vs-cost pressure)
+- `connectivity_cost_signals` (matched keywords)
+
+Customize default term expansion in `.env`:
+
+```bash
+LIVE_SEARCH_TERM_SUFFIXES=unreliable internet,slow internet speeds,high internet cost,backup internet,rural connectivity
+```
+
+---
+
 ## License
 
 MIT — VetElecTech.com

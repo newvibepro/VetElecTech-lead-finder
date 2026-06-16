@@ -56,7 +56,38 @@
 
 .header-stats {
   display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.api-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+}
+
+.api-status-ready {
+  color: #d7fce7;
+  background: rgba(22, 163, 74, 0.22);
+  border-color: rgba(167, 243, 208, 0.45);
+}
+
+.api-status-missing {
+  color: #ffd8d8;
+  background: rgba(220, 38, 38, 0.24);
+  border-color: rgba(252, 165, 165, 0.45);
+}
+
+.api-status-loading {
+  color: #fef3c7;
+  background: rgba(217, 119, 6, 0.24);
+  border-color: rgba(252, 211, 77, 0.45);
 }
 
 .stat-card {

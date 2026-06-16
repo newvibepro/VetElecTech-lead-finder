@@ -30,8 +30,11 @@ const SAFE_MODE_MAX_RESULTS  = toPositiveInt(process.env.SAFE_MODE_MAX_RESULTS, 
 const parseStateList = (value, fallback = '') =>
   (value || fallback).split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
 
-// Default target states — southern/rural states where Starlink adds most value
-const TARGET_STATES  = parseStateList(process.env.TARGET_STATES, 'TX,FL,GA,NC,TN,VA,AL,SC,OK,LA');
+// Default target states — all US states.
+const TARGET_STATES  = parseStateList(
+  process.env.TARGET_STATES,
+  'AL,AK,AZ,AR,CA,CO,CT,DE,FL,GA,HI,ID,IL,IN,IA,KS,KY,LA,ME,MD,MA,MI,MN,MS,MO,MT,NE,NV,NH,NJ,NM,NY,NC,ND,OH,OK,OR,PA,RI,SC,SD,TN,TX,UT,VT,VA,WA,WV,WI,WY'
+);
 const SCRAPE_STATES  = parseStateList(process.env.SCRAPE_STATES);
 const ACTIVE_STATES  = SCRAPE_STATES.length > 0 ? SCRAPE_STATES : TARGET_STATES;
 
@@ -39,6 +42,8 @@ const ACTIVE_STATES  = SCRAPE_STATES.length > 0 ? SCRAPE_STATES : TARGET_STATES;
 const SEARCH_QUERIES = [
   'hospital medical center clinic network systems',
   'manufacturing plant warehouse industrial facility',
+  'oil and gas field service pipeline operations',
+  'gas station convenience fuel stop network',
   'hotel resort conference center av systems',
   'bank credit union financial services office',
   'school university campus network infrastructure',
@@ -111,8 +116,7 @@ class ScraperOrchestrator {
     const queries = SAFE_MODE ? SEARCH_QUERIES.slice(0, SAFE_MODE_MAX_QUERIES) : SEARCH_QUERIES;
 
     for (const state of states) {
-      const location = LOCATION_COORDS[state];
-      if (!location) continue;
+      const location = LOCATION_COORDS[state] || { name: `${state}, USA` };
 
       for (const query of queries) {
         try {
@@ -137,8 +141,7 @@ class ScraperOrchestrator {
     const queries = SAFE_MODE ? SEARCH_QUERIES.slice(0, SAFE_MODE_MAX_QUERIES) : SEARCH_QUERIES;
 
     for (const state of states) {
-      const location = LOCATION_COORDS[state];
-      if (!location) continue;
+      const location = LOCATION_COORDS[state] || { name: `${state}, USA` };
 
       for (const query of queries) {
         try {

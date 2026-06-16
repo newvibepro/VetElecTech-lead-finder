@@ -17,7 +17,8 @@ const HIGH_CRITICALITY_KEYWORDS = [
   'bank', 'credit union', 'financial', 'insurance', 'trading', 'brokerage',
   'data center', 'colocation', 'cloud', 'server farm',
   'airport', 'transportation', 'logistics hub', 'port', 'rail',
-  'utility', 'power plant', 'water treatment', 'grid', 'energy'
+  'utility', 'power plant', 'water treatment', 'grid', 'energy',
+  'oil and gas', 'pipeline', 'terminal', 'fuel depot', 'gas station'
 ];
 
 // Industries with strong Starlink backup network alignment
@@ -30,7 +31,9 @@ const INDUSTRY_ALIGNMENT_KEYWORDS = [
   'construction', 'contractor', 'job site', 'field office', 'remote site',
   'agriculture', 'farm', 'ranch', 'rural', 'agribusiness',
   'retail chain', 'franchise', 'multi-location', 'pos system',
-  'mining', 'oil', 'gas', 'refinery', 'drilling', 'offshore'
+  'mining', 'oil', 'gas', 'oilfield', 'upstream', 'midstream', 'downstream',
+  'refinery', 'drilling', 'offshore', 'pipeline', 'petroleum', 'fuel terminal',
+  'gas station', 'service station', 'truck stop', 'convenience store'
 ];
 
 // Signals that a business has poor primary connectivity — ideal Starlink target
