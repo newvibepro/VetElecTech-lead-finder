@@ -10,7 +10,7 @@ function Dashboard() {
   const [filteredLeads, setFilteredLeads] = useState([]);
   const [stats, setStats] = useState(null);
   const [apiStatus, setApiStatus] = useState({ loading: true, mapsConfigured: false, yelpConfigured: false });
-  const [searchFeedback, setSearchFeedback] = useState({ error: '', diagnostics: null, mode: '' });
+  const [searchFeedback, setSearchFeedback] = useState({ error: '', diagnostics: null, mode: '', rawCount: 0 });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
 
@@ -55,7 +55,8 @@ function Dashboard() {
         (l.categories || []).some(c => c.toLowerCase().includes(selectedIndustry))
       );
     }
-    if (searchTerm) {
+    // In live mode, results are already query-filtered by the backend.
+    if (searchMode !== 'live' && searchTerm) {
       filtered = filtered.filter(l =>
         l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (l.city || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -63,7 +64,7 @@ function Dashboard() {
     }
 
     setFilteredLeads(filtered);
-  }, [leads, selectedState, minScore, selectedIndustry, searchTerm]);
+  }, [leads, searchMode, selectedState, minScore, selectedIndustry, searchTerm]);
 
   const fetchTopLeads = async () => {
     setLoading(true);
@@ -119,7 +120,7 @@ function Dashboard() {
     if (!searchTerm.trim()) return;
 
     setLoading(true);
-    setSearchFeedback({ error: '', diagnostics: null, mode: searchMode });
+    setSearchFeedback({ error: '', diagnostics: null, mode: searchMode, rawCount: 0 });
     try {
       const params = new URLSearchParams({ q: searchTerm.trim(), minScore: String(minScore) });
 
@@ -146,11 +147,12 @@ function Dashboard() {
       setSearchFeedback({
         error: '',
         diagnostics: searchMode === 'live' ? (data.diagnostics || null) : null,
-        mode: searchMode
+        mode: searchMode,
+        rawCount: Array.isArray(data.results) ? data.results.length : (data.count || 0)
       });
     } catch (error) {
       console.error('Error searching:', error);
-      setSearchFeedback({ error: error.message || 'Search failed', diagnostics: null, mode: searchMode });
+      setSearchFeedback({ error: error.message || 'Search failed', diagnostics: null, mode: searchMode, rawCount: 0 });
     } finally {
       setLoading(false);
     }
@@ -289,10 +291,12 @@ function Dashboard() {
           ) : (
             <div className="search-feedback-ok">
               <strong>Live diagnostics:</strong>
+              {' apiResults='}{searchFeedback.rawCount || 0}
+              {' | rendered='}{filteredLeads.length}
               {' terms='}{searchFeedback.diagnostics?.terms?.length || 0}
               {' | googleCount='}{searchFeedback.diagnostics?.googleCount || 0}
               {' | state='}{searchFeedback.diagnostics?.location || 'N/A'}
-              {filteredLeads.length === 0 ? ' | tip: set Min Score to 0 or try "loves travel stop".' : ''}
+              {filteredLeads.length === 0 ? ' | tip: clear Industry filter and set Min Score to 0.' : ''}
             </div>
           )}
         </div>
