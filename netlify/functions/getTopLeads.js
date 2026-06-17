@@ -21,7 +21,16 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { limit = 100, state, minScore = 0 } = event.queryStringParameters || {};
+    const {
+      limit = 100,
+      state,
+      minScore = 0,
+      includeContacts = '0',
+      minContactConfidence = 0
+    } = event.queryStringParameters || {};
+
+    const includeContactsEnabled = /^(1|true|yes|on)$/i.test(String(includeContacts));
+    const minConfidence = Math.max(0, Math.min(100, parseInt(minContactConfidence, 10) || 0));
 
     let query = supabase
       .from('leads')
@@ -36,10 +45,38 @@ exports.handler = async (event) => {
 
     if (error) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: error.message }) };
 
+    let leads = data || [];
+
+    if (includeContactsEnabled && leads.length > 0) {
+      const leadIds = leads.map((lead) => lead.id).filter(Boolean);
+
+      if (leadIds.length > 0) {
+        const { data: contacts, error: contactsError } = await supabase
+          .from('lead_contacts')
+          .select('*')
+          .in('lead_id', leadIds)
+          .gte('confidence_score', minConfidence)
+          .order('confidence_score', { ascending: false });
+
+        if (!contactsError) {
+          const grouped = (contacts || []).reduce((acc, contact) => {
+            if (!acc[contact.lead_id]) acc[contact.lead_id] = [];
+            acc[contact.lead_id].push(contact);
+            return acc;
+          }, {});
+
+          leads = leads.map((lead) => ({
+            ...lead,
+            contacts: grouped[lead.id] || []
+          }));
+        }
+      }
+    }
+
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({ leads: data || [], count: data?.length || 0 })
+      body: JSON.stringify({ leads, count: leads.length })
     };
   } catch (error) {
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message }) };

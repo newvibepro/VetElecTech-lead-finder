@@ -11,6 +11,7 @@ function Dashboard() {
   const [stats, setStats] = useState(null);
   const [apiStatus, setApiStatus] = useState({ loading: true, mapsConfigured: false, yelpConfigured: false });
   const [searchFeedback, setSearchFeedback] = useState({ error: '', diagnostics: null, mode: '', rawCount: 0 });
+  const [enrichFeedback, setEnrichFeedback] = useState({ loading: false, message: '', error: '' });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
 
@@ -18,6 +19,7 @@ function Dashboard() {
   const [searchMode, setSearchMode] = useState('live');
   const [selectedState, setSelectedState] = useState('');
   const [minScore, setMinScore] = useState(0);
+  const [minContactConfidence, setMinContactConfidence] = useState(0);
   const [selectedIndustry, setSelectedIndustry] = useState('');
 
   const targetStates = [
@@ -39,6 +41,10 @@ function Dashboard() {
     fetchStats();
     fetchApiStatus();
   }, []);
+
+  useEffect(() => {
+    fetchTopLeads();
+  }, [minContactConfidence]);
 
   useEffect(() => {
     let filtered = leads;
@@ -74,7 +80,7 @@ function Dashboard() {
   const fetchTopLeads = async () => {
     setLoading(true);
     try {
-      const url = `/.netlify/functions/getTopLeads?limit=100${selectedState ? `&state=${selectedState}` : ''}`;
+      const url = `/.netlify/functions/getTopLeads?limit=100${selectedState ? `&state=${selectedState}` : ''}&includeContacts=1&minContactConfidence=${minContactConfidence}`;
       const response = await fetch(url);
       const data = await response.json();
       setLeads(data.leads || []);
@@ -130,6 +136,8 @@ function Dashboard() {
       const params = new URLSearchParams({ q: searchTerm.trim(), minScore: String(minScore) });
 
       if (selectedState) params.set('state', selectedState);
+      params.set('includeContacts', '1');
+      params.set('minContactConfidence', String(minContactConfidence));
 
       let endpoint = '/.netlify/functions/searchLeads';
 
@@ -163,21 +171,92 @@ function Dashboard() {
     }
   };
 
+  const enrichVisibleLeads = async () => {
+    const visibleIds = filteredLeads
+      .map((lead) => lead.id)
+      .filter(Boolean)
+      .slice(0, 150);
+
+    if (visibleIds.length === 0) {
+      setEnrichFeedback({ loading: false, message: '', error: 'No visible saved leads with IDs to enrich.' });
+      return;
+    }
+
+    setEnrichFeedback({ loading: true, message: '', error: '' });
+    try {
+      const response = await fetch('/.netlify/functions/batchEnrichContacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadIds: visibleIds, onlyMissing: false })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Batch enrichment failed');
+
+      setEnrichFeedback({
+        loading: false,
+        message: `Enriched ${data.leadsAttempted || 0} leads. Contacts created/updated: ${data.contactsCreated || 0}.`,
+        error: ''
+      });
+
+      await fetchTopLeads();
+    } catch (error) {
+      setEnrichFeedback({ loading: false, message: '', error: error.message || 'Batch enrichment failed' });
+    }
+  };
+
   const exportAsCSV = () => {
+    const totalContactsFound = filteredLeads.reduce((sum, lead) => sum + ((lead.contacts || []).length), 0);
+
+    const verifiedEmailCount = filteredLeads.reduce((sum, lead) => {
+      const contacts = lead.contacts || [];
+      const verifiedForLead = contacts.filter(c => c.email && c.email_verified).length;
+      if (verifiedForLead > 0) return sum + verifiedForLead;
+      return sum + (lead.best_contact_email ? 1 : 0);
+    }, 0);
+
+    const leadsAboveConfidenceThreshold = filteredLeads.filter((lead) => {
+      const bestFromSummary = Number(lead.best_contact_confidence || 0);
+      const bestFromContacts = Math.max(0, ...(lead.contacts || []).map(c => Number(c.confidence_score || 0)));
+      const best = Math.max(bestFromSummary, bestFromContacts);
+      return best >= minContactConfidence;
+    }).length;
+
+    const leadsWithAnyContacts = filteredLeads.filter((lead) => {
+      return (lead.contacts || []).length > 0 || Boolean(lead.best_contact_email || lead.best_contact_name);
+    }).length;
+
     const headers = [
       'Name', 'City', 'State', 'Overall Score',
       'Connectivity Criticality', 'Industry Alignment',
       'Service Area Fit', 'Business Viability', 'Accessibility',
-      'Business Type', 'Website', 'Phone'
+      'Business Type', 'Website', 'Phone',
+      'Best Contact Name', 'Best Contact Email', 'Best Contact Confidence', 'Best Contact Source'
     ];
     const rows = filteredLeads.map(l => [
       l.name, l.city, l.state, l.overall_score,
       l.connectivity_criticality_score, l.industry_alignment_score,
       l.service_area_fit_score, l.business_viability_score, l.accessibility_score,
-      l.business_type || '', l.website || '', l.phone || ''
+      l.business_type || '', l.website || '', l.phone || '',
+      l.best_contact_name || l.contacts?.[0]?.full_name || '',
+      l.best_contact_email || l.contacts?.[0]?.email || '',
+      l.best_contact_confidence || l.contacts?.[0]?.confidence_score || 0,
+      l.best_contact_source || l.contacts?.[0]?.source_platform || ''
     ].map(v => `"${v}"`).join(','));
 
-    const csv = [headers.join(','), ...rows].join('\n');
+    const summaryRows = [
+      ['Report Generated At', new Date().toISOString()],
+      ['Visible Leads', filteredLeads.length],
+      ['Active Filters', `mode=${searchMode || 'db'}; state=${selectedState || 'ALL'}; industry=${selectedIndustry || 'ALL'}; minScore=${minScore}; minContactConfidence=${minContactConfidence}; searchTerm=${searchTerm ? searchTerm.trim() : 'none'}`],
+      ['Min Contact Confidence Filter', minContactConfidence],
+      ['Total Contacts Found', totalContactsFound],
+      ['Verified Emails', verifiedEmailCount],
+      ['Leads Above Confidence Threshold', leadsAboveConfidenceThreshold],
+      ['Leads With Any Contact Data', leadsWithAnyContacts],
+      []
+    ].map((row) => row.map((value) => `"${value}"`).join(','));
+
+    const csv = [...summaryRows, headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -285,11 +364,41 @@ function Dashboard() {
             />
           </div>
 
+          <div className="filter-group">
+            <label>Min Contact Confidence:</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={minContactConfidence}
+              onChange={(e) => {
+                const next = Number.parseInt(e.target.value || '0', 10);
+                setMinContactConfidence(Number.isFinite(next) ? Math.max(0, Math.min(100, next)) : 0);
+              }}
+              className="filter-select"
+            />
+          </div>
+
+          <button onClick={enrichVisibleLeads} className="btn btn-tertiary" disabled={enrichFeedback.loading || filteredLeads.length === 0}>
+            {enrichFeedback.loading ? 'Enriching...' : 'Enrich Visible Leads'}
+          </button>
+
           <button onClick={exportAsCSV} className="btn btn-secondary">
             📥 Export CSV
           </button>
         </div>
       </div>
+
+      {(enrichFeedback.message || enrichFeedback.error) && (
+        <div className="search-feedback-strip">
+          {enrichFeedback.error ? (
+            <div className="search-feedback-error">Contact enrichment error: {enrichFeedback.error}</div>
+          ) : (
+            <div className="search-feedback-ok">{enrichFeedback.message}</div>
+          )}
+        </div>
+      )}
 
       {(searchFeedback.error || (searchFeedback.mode === 'live' && searchFeedback.diagnostics)) && (
         <div className="search-feedback-strip">
@@ -340,7 +449,7 @@ function Dashboard() {
       <div className="dashboard-content">
         {activeTab === 'map'   && <LeadMap   leads={filteredLeads} />}
         {activeTab === 'list'  && <LeadList  leads={filteredLeads} />}
-        {activeTab === 'stats' && <StatsPanel stats={stats} leads={filteredLeads} />}
+        {activeTab === 'stats' && <StatsPanel stats={stats} leads={filteredLeads} contactConfidenceThreshold={minContactConfidence} />}
       </div>
     </div>
   );

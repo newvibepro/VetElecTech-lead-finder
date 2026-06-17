@@ -59,6 +59,12 @@ function LeadList({ leads = [] }) {
     return 'Cold';
   };
 
+  const getContactConfidenceClass = (score) => {
+    if (score >= 80) return 'confidence-high';
+    if (score >= 60) return 'confidence-medium';
+    return 'confidence-low';
+  };
+
   return (
     <div className="lead-list">
       <div className="list-controls">
@@ -148,6 +154,67 @@ function LeadList({ leads = [] }) {
                       )}
                     </div>
                   )}
+
+                  <div className="contact-intel">
+                    <div className="contact-intel-head">
+                      <h4>Contact Intelligence</h4>
+                      {lead.best_contact_confidence ? (
+                        <span className={`contact-confidence-chip ${getContactConfidenceClass(lead.best_contact_confidence)}`}>
+                          Best Confidence: {lead.best_contact_confidence}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {Array.isArray(lead.contacts) && lead.contacts.length > 0 ? (
+                      <div className="contact-cards-grid">
+                        {lead.contacts.slice(0, 3).map((contact) => (
+                          <div key={contact.id || `${contact.email || 'contact'}-${contact.confidence_score || 0}`} className="contact-card">
+                            <div className="contact-card-top">
+                              <div>
+                                <div className="contact-name">{contact.full_name || 'Unnamed Contact'}</div>
+                                <div className="contact-title">{contact.title || contact.department || 'Role unavailable'}</div>
+                              </div>
+                              <span className={`contact-confidence-chip ${getContactConfidenceClass(contact.confidence_score || 0)}`}>
+                                {contact.confidence_score || 0}
+                              </span>
+                            </div>
+
+                            <div className="contact-meta-row">
+                              <span className="contact-source-pill">{contact.source_platform || 'unknown'}</span>
+                              {contact.last_verified_at ? (
+                                <span className="contact-verified">Verified {new Date(contact.last_verified_at).toLocaleDateString()}</span>
+                              ) : null}
+                            </div>
+
+                            <div className="contact-actions">
+                              {contact.email ? (
+                                <a href={`mailto:${contact.email}`} className="contact-link" onClick={(e) => e.stopPropagation()}>
+                                  <Globe size={14} /> {contact.email}
+                                </a>
+                              ) : null}
+                              {contact.phone_direct ? (
+                                <a href={`tel:${contact.phone_direct}`} className="contact-link" onClick={(e) => e.stopPropagation()}>
+                                  <Phone size={14} /> {contact.phone_direct}
+                                </a>
+                              ) : null}
+                              {contact.linkedin_profile_url ? (
+                                <a href={contact.linkedin_profile_url} target="_blank" rel="noopener noreferrer" className="contact-link" onClick={(e) => e.stopPropagation()}>
+                                  <Building2 size={14} /> LinkedIn
+                                </a>
+                              ) : null}
+                              {contact.source_url ? (
+                                <a href={contact.source_url} target="_blank" rel="noopener noreferrer" className="contact-link" onClick={(e) => e.stopPropagation()}>
+                                  <MapPin size={14} /> Source
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="contact-empty">No decision-maker contacts yet. Use Enrich Visible Leads to discover contact options.</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

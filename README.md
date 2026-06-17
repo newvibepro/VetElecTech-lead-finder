@@ -78,6 +78,12 @@ npm run dev
 | `YELP_API_KEY` | Yelp Fusion API key |
 | `TARGET_STATES` | Comma-separated state codes (default: TX,FL,GA,NC,TN,VA,AL,SC,OK,LA) |
 | `SAFE_MODE` | Set to `1` to limit API calls during testing |
+| `CONTACT_ENRICHMENT_ENABLED` | Enable/disable contact enrichment pipeline |
+| `CONTACT_ENRICH_API_KEY` | API key for enrichment provider |
+| `CONTACT_ENRICH_API_BASE_URL` | Base URL for provider endpoint (`POST /enrich`) |
+| `CONTACT_ENRICH_MIN_CONFIDENCE` | Minimum confidence score kept in DB and UI |
+| `CONTACT_WEBSITE_CRAWL_ENABLED` | Enable fallback website contact extraction |
+| `CONTACT_RATE_LIMIT_PER_MIN` | Max enrichment requests per minute in batch mode |
 
 ---
 
@@ -116,10 +122,13 @@ Frontend (React + Vite)
 Netlify Functions (Node.js)
   ├── getTopLeads
   ├── searchLeads
+  ├── enrichLeadContacts
+  ├── batchEnrichContacts
+  ├── getLeadContacts
   └── getStats
         ↓ Supabase client
 Supabase (PostgreSQL)
-  └── leads table, scraper_runs table
+  └── leads table, lead_contacts table, scraper_runs table
 
 Scraper (Node CLI — run locally or on schedule)
   ├── Google Maps API
@@ -156,6 +165,27 @@ Customize default term expansion in `.env`:
 ```bash
 LIVE_SEARCH_TERM_SUFFIXES=unreliable internet,slow internet speeds,high internet cost,backup internet,rural connectivity
 ```
+
+---
+
+## Contact Enrichment
+
+Contact enrichment is now available with confidence-scored contact cards in the Lead List.
+
+Implementation includes:
+
+- SQL migration: `db/migrations/20260617_contact_enrichment.sql`
+- New functions:
+  - `/.netlify/functions/enrichLeadContacts`
+  - `/.netlify/functions/batchEnrichContacts`
+  - `/.netlify/functions/getLeadContacts`
+- Contact embedding support on existing endpoints with:
+  - `includeContacts=1`
+  - `minContactConfidence=0-100`
+
+Full usage guide:
+
+- `docs/contact-enrichment-guide.md`
 
 ---
 

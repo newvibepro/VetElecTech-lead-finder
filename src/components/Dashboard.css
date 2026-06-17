@@ -221,6 +221,15 @@
 }
 .btn-secondary:hover { background: var(--gold-light); }
 
+.btn-tertiary {
+  background: #dbeafe;
+  color: #1e3a8a;
+  border: 1px solid #93c5fd;
+}
+.btn-tertiary:hover:not(:disabled) {
+  background: #bfdbfe;
+}
+
 /* ── Tabs ── */
 .dashboard-tabs {
   display: flex;

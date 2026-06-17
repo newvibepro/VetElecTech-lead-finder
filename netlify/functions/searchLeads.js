@@ -21,7 +21,16 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { q, state, minScore = 0 } = event.queryStringParameters || {};
+    const {
+      q,
+      state,
+      minScore = 0,
+      includeContacts = '0',
+      minContactConfidence = 0
+    } = event.queryStringParameters || {};
+
+    const includeContactsEnabled = /^(1|true|yes|on)$/i.test(String(includeContacts));
+    const minConfidence = Math.max(0, Math.min(100, parseInt(minContactConfidence, 10) || 0));
 
     if (!q) {
       return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Query parameter "q" is required' }) };
@@ -41,10 +50,38 @@ exports.handler = async (event) => {
 
     if (error) return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: error.message }) };
 
+    let results = data || [];
+
+    if (includeContactsEnabled && results.length > 0) {
+      const leadIds = results.map((lead) => lead.id).filter(Boolean);
+
+      if (leadIds.length > 0) {
+        const { data: contacts, error: contactsError } = await supabase
+          .from('lead_contacts')
+          .select('*')
+          .in('lead_id', leadIds)
+          .gte('confidence_score', minConfidence)
+          .order('confidence_score', { ascending: false });
+
+        if (!contactsError) {
+          const grouped = (contacts || []).reduce((acc, contact) => {
+            if (!acc[contact.lead_id]) acc[contact.lead_id] = [];
+            acc[contact.lead_id].push(contact);
+            return acc;
+          }, {});
+
+          results = results.map((lead) => ({
+            ...lead,
+            contacts: grouped[lead.id] || []
+          }));
+        }
+      }
+    }
+
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({ results: data || [], count: data?.length || 0 })
+      body: JSON.stringify({ results, count: results.length })
     };
   } catch (error) {
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message }) };

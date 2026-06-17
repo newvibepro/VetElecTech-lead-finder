@@ -10,6 +10,7 @@ const GoogleMapsScraper = require('../../scripts/lib/googleMapsScraper');
 const YelpScraper = require('../../scripts/lib/yelpScraper');
 const ScoringEngine = require('../../scripts/lib/scorer');
 const DatabaseManager = require('../../scripts/lib/db');
+const { createClient } = require('@supabase/supabase-js');
 
 const STATE_LOCATIONS = {
   TX: 'Austin, TX',
@@ -67,6 +68,10 @@ function parseCsvTerms(raw) {
     .split(',')
     .map(term => term.trim())
     .filter(Boolean);
+}
+
+function isTruthy(value) {
+  return /^(1|true|yes|on)$/i.test(String(value || '').trim());
 }
 
 function buildSearchTerms(userTerm, maxTerms, extraTerms = []) {
@@ -148,7 +153,9 @@ exports.handler = async (event) => {
       limit = 40,
       maxTerms = 3,
       sources = 'all',
-      extraTerms = ''
+      extraTerms = '',
+      includeContacts = '0',
+      minContactConfidence = 0
     } = event.queryStringParameters || {};
 
     if (!q || !q.trim()) {
@@ -177,6 +184,8 @@ exports.handler = async (event) => {
     const finalLimit = Math.min(Math.max(toInt(limit, 40), 1), 100);
     const finalMinScore = Math.min(Math.max(toInt(minScore, 0), 0), 100);
     const finalMaxTerms = Math.min(Math.max(toInt(maxTerms, 3), 1), 6);
+    const includeContactsEnabled = isTruthy(includeContacts);
+    const finalMinContactConfidence = Math.min(Math.max(toInt(minContactConfidence, 0), 0), 100);
     const customTerms = parseCsvTerms(extraTerms);
     const terms = buildSearchTerms(q, finalMaxTerms, customTerms);
 
@@ -260,14 +269,70 @@ exports.handler = async (event) => {
       }
     }
 
+    let results = ranked;
+
+    if (includeContactsEnabled) {
+      const supabaseRead = createClient(
+        process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+      );
+
+      const sourceIds = ranked.map((lead) => lead.source_id).filter(Boolean);
+      if (sourceIds.length > 0) {
+        const { data: leadRows, error: leadRowsError } = await supabaseRead
+          .from('leads')
+          .select('id, source_id, best_contact_confidence, best_contact_source, best_contact_email, best_contact_name')
+          .in('source_id', sourceIds);
+
+        if (!leadRowsError && (leadRows || []).length) {
+          const leadBySourceId = (leadRows || []).reduce((acc, row) => {
+            acc[row.source_id] = row;
+            return acc;
+          }, {});
+
+          const leadIds = (leadRows || []).map((row) => row.id).filter(Boolean);
+          const contactsByLeadId = {};
+
+          if (leadIds.length > 0) {
+            const { data: contacts, error: contactsError } = await supabaseRead
+              .from('lead_contacts')
+              .select('*')
+              .in('lead_id', leadIds)
+              .gte('confidence_score', finalMinContactConfidence)
+              .order('confidence_score', { ascending: false });
+
+            if (!contactsError) {
+              for (const contact of contacts || []) {
+                if (!contactsByLeadId[contact.lead_id]) contactsByLeadId[contact.lead_id] = [];
+                contactsByLeadId[contact.lead_id].push(contact);
+              }
+            }
+          }
+
+          results = ranked.map((lead) => {
+            const saved = leadBySourceId[lead.source_id];
+            if (!saved) return lead;
+            return {
+              ...lead,
+              best_contact_confidence: saved.best_contact_confidence,
+              best_contact_source: saved.best_contact_source,
+              best_contact_email: saved.best_contact_email,
+              best_contact_name: saved.best_contact_name,
+              contacts: contactsByLeadId[saved.id] || []
+            };
+          });
+        }
+      }
+    }
+
     return {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
         query: q,
         state: normalizedState || null,
-        count: ranked.length,
-        results: ranked,
+        count: results.length,
+        results,
         diagnostics
       })
     };

@@ -1,7 +1,7 @@
 import React from 'react';
 import './StatsPanel.css';
 
-function StatsPanel({ stats = {}, leads = [] }) {
+function StatsPanel({ stats = {}, leads = [], contactConfidenceThreshold = 0 }) {
   const byScore = leads.reduce((acc, l) => {
     if (l.overall_score >= 80) acc['80+']++;
     else if (l.overall_score >= 60) acc['60–79']++;
@@ -25,6 +25,28 @@ function StatsPanel({ stats = {}, leads = [] }) {
     .slice(0, 6);
 
   const maxIndustryCount = Math.max(...Object.values(byIndustry), 1);
+
+  const totalContactsFound = leads.reduce((sum, lead) => sum + ((lead.contacts || []).length), 0);
+
+  const verifiedEmailCount = leads.reduce((sum, lead) => {
+    const contacts = lead.contacts || [];
+    const verifiedForLead = contacts.filter(c => c.email && c.email_verified).length;
+    if (verifiedForLead > 0) return sum + verifiedForLead;
+
+    const hasBestEmail = Boolean(lead.best_contact_email);
+    return sum + (hasBestEmail ? 1 : 0);
+  }, 0);
+
+  const leadsAboveConfidenceThreshold = leads.filter((lead) => {
+    const bestFromSummary = Number(lead.best_contact_confidence || 0);
+    const bestFromContacts = Math.max(0, ...(lead.contacts || []).map(c => Number(c.confidence_score || 0)));
+    const best = Math.max(bestFromSummary, bestFromContacts);
+    return best >= contactConfidenceThreshold;
+  }).length;
+
+  const leadsWithAnyContacts = leads.filter((lead) => {
+    return (lead.contacts || []).length > 0 || Boolean(lead.best_contact_email || lead.best_contact_name);
+  }).length;
 
   return (
     <div className="stats-panel">
@@ -86,6 +108,32 @@ function StatsPanel({ stats = {}, leads = [] }) {
             <DimBar label="Service Area Fit"         value={avg('service_area_fit_score')}         color="var(--gold)" weight="20%" />
             <DimBar label="Business Viability"       value={avg('business_viability_score')}       color="var(--green)" weight="15%" />
             <DimBar label="Accessibility"            value={avg('accessibility_score')}            color="#8b5cf6" weight=" 5%" />
+          </div>
+        </div>
+      </div>
+
+      <div className="analytics-card full">
+        <h3>Contact Intelligence</h3>
+        <div className="contact-metrics-grid">
+          <div className="contact-metric-card">
+            <div className="contact-metric-label">Total Contacts Found</div>
+            <div className="contact-metric-value">{totalContactsFound}</div>
+            <div className="contact-metric-detail">Across visible leads</div>
+          </div>
+          <div className="contact-metric-card">
+            <div className="contact-metric-label">Verified Emails</div>
+            <div className="contact-metric-value">{verifiedEmailCount}</div>
+            <div className="contact-metric-detail">Explicitly verified or best-contact fallback</div>
+          </div>
+          <div className="contact-metric-card">
+            <div className="contact-metric-label">Leads Above Confidence Threshold</div>
+            <div className="contact-metric-value">{leadsAboveConfidenceThreshold}</div>
+            <div className="contact-metric-detail">Threshold: {contactConfidenceThreshold}</div>
+          </div>
+          <div className="contact-metric-card">
+            <div className="contact-metric-label">Leads With Any Contact Data</div>
+            <div className="contact-metric-value">{leadsWithAnyContacts}</div>
+            <div className="contact-metric-detail">Name, email, or contact card present</div>
           </div>
         </div>
       </div>
