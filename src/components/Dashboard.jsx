@@ -70,16 +70,11 @@ function Dashboard() {
         (l.categories || []).some(c => c.toLowerCase().includes(selectedIndustry))
       );
     }
-    // In live mode, results are already query-filtered by the backend.
-    if (searchMode !== 'live' && searchTerm) {
-      filtered = filtered.filter(l =>
-        l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (l.city || '').toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    // Search endpoints already return query-filtered results.
+    // Avoid re-filtering locally because it can hide valid matches.
 
     setFilteredLeads(filtered);
-  }, [leads, searchMode, selectedState, minScore, selectedIndustry, searchTerm]);
+  }, [leads, searchMode, selectedState, minScore, selectedIndustry]);
 
   const fetchTopLeads = async () => {
     setLoading(true);
@@ -145,11 +140,15 @@ function Dashboard() {
 
       let endpoint = '/.netlify/functions/searchLeads';
 
-      if (searchMode === 'live') {
+      if (searchMode === 'live' || searchMode === 'raw_maps') {
         endpoint = '/.netlify/functions/liveSearch';
-        params.set('limit', '80');
-        params.set('maxTerms', '3');
+        params.set('limit', searchMode === 'raw_maps' ? '100' : '80');
+        params.set('maxTerms', searchMode === 'raw_maps' ? '1' : '3');
         params.set('sources', 'maps');
+        if (searchMode === 'raw_maps') {
+          params.set('rawMode', '1');
+          params.set('scoreTopN', '10');
+        }
       }
 
       const url = `${endpoint}?${params.toString()}`;
@@ -163,7 +162,7 @@ function Dashboard() {
       setLeads(data.results || []);
       setSearchFeedback({
         error: '',
-        diagnostics: searchMode === 'live' ? (data.diagnostics || null) : null,
+        diagnostics: (searchMode === 'live' || searchMode === 'raw_maps') ? (data.diagnostics || null) : null,
         mode: searchMode,
         rawCount: Array.isArray(data.results) ? data.results.length : (data.count || 0)
       });
@@ -338,14 +337,20 @@ function Dashboard() {
         <form onSubmit={handleSearch} className="search-form">
           <input
             type="text"
-            placeholder={searchMode === 'live' ? 'Live discover: hospital, warehouse, rural clinic...' : 'Search saved leads by name, type, city...'}
+            placeholder={
+              searchMode === 'db'
+                ? 'Search saved leads by name, type, city...'
+                : (searchMode === 'raw_maps'
+                  ? 'Raw Maps: Pilot truck stop, Loves Travel Stop, TA...' :
+                  'Live discover: hospital, warehouse, rural clinic...')
+            }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
           <button type="submit" className="btn btn-primary" disabled={loading}>
             <Search size={17} />
-            {loading ? 'Searching...' : (searchMode === 'live' ? 'Live Search' : 'DB Search')}
+            {loading ? 'Searching...' : (searchMode === 'db' ? 'DB Search' : (searchMode === 'raw_maps' ? 'Raw Maps' : 'Live Search'))}
           </button>
         </form>
 
@@ -354,6 +359,7 @@ function Dashboard() {
             <label>Search Mode:</label>
             <select value={searchMode} onChange={(e) => setSearchMode(e.target.value)} className="filter-select">
               <option value="live">Live Discovery (Google Maps)</option>
+              <option value="raw_maps">Raw Maps (Top 10 Scored)</option>
               <option value="db">Saved Leads (Database)</option>
             </select>
           </div>
@@ -428,7 +434,7 @@ function Dashboard() {
         </div>
       )}
 
-      {(searchFeedback.error || (searchFeedback.mode === 'live' && searchFeedback.diagnostics)) && (
+      {(searchFeedback.error || ((searchFeedback.mode === 'live' || searchFeedback.mode === 'raw_maps') && searchFeedback.diagnostics)) && (
         <div className="search-feedback-strip">
           {searchFeedback.error ? (
             <div className="search-feedback-error">
@@ -436,11 +442,12 @@ function Dashboard() {
             </div>
           ) : (
             <div className="search-feedback-ok">
-              <strong>Live diagnostics:</strong>
+              <strong>{searchFeedback.mode === 'raw_maps' ? 'Raw Maps diagnostics:' : 'Live diagnostics:'}</strong>
               {' apiResults='}{searchFeedback.rawCount || 0}
               {' | rendered='}{filteredLeads.length}
               {' terms='}{searchFeedback.diagnostics?.terms?.length || 0}
               {' | googleCount='}{searchFeedback.diagnostics?.googleCount || 0}
+              {searchFeedback.mode === 'raw_maps' ? ` | scoredTopN=${searchFeedback.diagnostics?.scoreTopN || 0}` : ''}
               {' | state='}{searchFeedback.diagnostics?.location || 'N/A'}
               {filteredLeads.length === 0 ? ' | tip: clear Industry filter and set Min Score to 0.' : ''}
             </div>

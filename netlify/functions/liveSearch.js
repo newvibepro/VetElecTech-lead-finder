@@ -155,7 +155,9 @@ exports.handler = async (event) => {
       sources = 'all',
       extraTerms = '',
       includeContacts = '0',
-      minContactConfidence = 0
+      minContactConfidence = 0,
+      rawMode = '0',
+      scoreTopN = 10
     } = event.queryStringParameters || {};
 
     if (!q || !q.trim()) {
@@ -186,14 +188,20 @@ exports.handler = async (event) => {
     const finalMaxTerms = Math.min(Math.max(toInt(maxTerms, 3), 1), 6);
     const includeContactsEnabled = isTruthy(includeContacts);
     const finalMinContactConfidence = Math.min(Math.max(toInt(minContactConfidence, 0), 0), 100);
+    const rawModeEnabled = isTruthy(rawMode);
+    const finalScoreTopN = Math.min(Math.max(toInt(scoreTopN, 10), 1), 50);
     const customTerms = parseCsvTerms(extraTerms);
-    const terms = buildSearchTerms(q, finalMaxTerms, customTerms);
+    const terms = rawModeEnabled
+      ? [String(q).trim()]
+      : buildSearchTerms(q, finalMaxTerms, customTerms);
 
     const scorer = new ScoringEngine();
     const allRawLeads = [];
     const diagnostics = {
       terms,
       sources: sourceFlags,
+      rawModeEnabled,
+      scoreTopN: finalScoreTopN,
       location,
       googleCount: 0,
       yelpCount: 0,
@@ -232,28 +240,72 @@ exports.handler = async (event) => {
 
     const deduped = dedupeLeads(allRawLeads);
 
-    const ranked = deduped
-      .map(lead => {
-        const scored = scorer.scoreLead(lead);
-        const pressure = scoreConnectivityCostPressure(scored, q);
-        const live_fit_score = Math.min(
-          100,
-          Math.round((scored.overall_score * 0.7) + (pressure.score * 0.3))
-        );
+    let ranked;
 
-        return {
-          ...scored,
-          connectivity_cost_pressure_score: pressure.score,
-          connectivity_cost_signals: pressure.matchedSignals,
-          live_fit_score
-        };
-      })
-      .filter(lead => {
-        if (normalizedState && lead.state && lead.state.toUpperCase() !== normalizedState) return false;
-        return lead.live_fit_score >= finalMinScore;
-      })
-      .sort((a, b) => b.live_fit_score - a.live_fit_score)
-      .slice(0, finalLimit);
+    if (rawModeEnabled) {
+      ranked = deduped
+        .map((lead, idx) => {
+          if (idx < finalScoreTopN) {
+            const scored = scorer.scoreLead(lead);
+            const pressure = scoreConnectivityCostPressure(scored, q);
+            const live_fit_score = Math.min(
+              100,
+              Math.round((scored.overall_score * 0.7) + (pressure.score * 0.3))
+            );
+
+            return {
+              ...scored,
+              connectivity_cost_pressure_score: pressure.score,
+              connectivity_cost_signals: pressure.matchedSignals,
+              live_fit_score,
+              scoring_applied: true
+            };
+          }
+
+          return {
+            ...lead,
+            connectivity_criticality_score: 0,
+            industry_alignment_score: 0,
+            service_area_fit_score: 0,
+            business_viability_score: 0,
+            accessibility_score: 0,
+            overall_score: 0,
+            connectivity_cost_pressure_score: 0,
+            connectivity_cost_signals: [],
+            live_fit_score: 0,
+            scoring_applied: false
+          };
+        })
+        .filter(lead => {
+          if (normalizedState && lead.state && lead.state.toUpperCase() !== normalizedState) return false;
+          return true;
+        })
+        .slice(0, finalLimit);
+    } else {
+      ranked = deduped
+        .map(lead => {
+          const scored = scorer.scoreLead(lead);
+          const pressure = scoreConnectivityCostPressure(scored, q);
+          const live_fit_score = Math.min(
+            100,
+            Math.round((scored.overall_score * 0.7) + (pressure.score * 0.3))
+          );
+
+          return {
+            ...scored,
+            connectivity_cost_pressure_score: pressure.score,
+            connectivity_cost_signals: pressure.matchedSignals,
+            live_fit_score,
+            scoring_applied: true
+          };
+        })
+        .filter(lead => {
+          if (normalizedState && lead.state && lead.state.toUpperCase() !== normalizedState) return false;
+          return lead.live_fit_score >= finalMinScore;
+        })
+        .sort((a, b) => b.live_fit_score - a.live_fit_score)
+        .slice(0, finalLimit);
+    }
 
     // Persist live-discovered leads so DB mode can reuse results.
     if (process.env.SUPABASE_SERVICE_KEY) {

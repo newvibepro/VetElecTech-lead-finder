@@ -36,11 +36,31 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Query parameter "q" is required' }) };
     }
 
+    const normalizedQuery = String(q).trim().toLowerCase();
+    const tokens = normalizedQuery
+      .split(/\s+/)
+      .map((t) => t.replace(/[^a-z0-9]/gi, ''))
+      .filter(Boolean)
+      .slice(0, 6);
+
+    const orConditions = [
+      `name.ilike.%${normalizedQuery}%`,
+      `description.ilike.%${normalizedQuery}%`,
+      `business_type.ilike.%${normalizedQuery}%`
+    ];
+
+    for (const token of tokens) {
+      orConditions.push(`name.ilike.%${token}%`);
+      orConditions.push(`description.ilike.%${token}%`);
+      orConditions.push(`business_type.ilike.%${token}%`);
+      orConditions.push(`keywords.cs.{${token}}`);
+    }
+
     let query = supabase
       .from('leads')
       .select('*')
       .gte('overall_score', parseInt(minScore) || 0)
-      .or(`name.ilike.%${q}%,description.ilike.%${q}%,business_type.ilike.%${q}%,keywords.cs.{${q}}`)
+      .or(orConditions.join(','))
       .order('overall_score', { ascending: false })
       .limit(100);
 
