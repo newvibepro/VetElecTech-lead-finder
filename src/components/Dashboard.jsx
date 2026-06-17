@@ -14,6 +14,7 @@ function Dashboard() {
   const [enrichFeedback, setEnrichFeedback] = useState({ loading: false, message: '', error: '' });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('map');
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchMode, setSearchMode] = useState('live');
@@ -21,6 +22,9 @@ function Dashboard() {
   const [minScore, setMinScore] = useState(0);
   const [minContactConfidence, setMinContactConfidence] = useState(0);
   const [selectedIndustry, setSelectedIndustry] = useState('');
+
+  const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'your-email@example.com';
+  const appAttribution = import.meta.env.VITE_APP_ATTRIBUTION || 'VetElecTech.com';
 
   const targetStates = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -281,6 +285,14 @@ function Dashboard() {
             </div>
           </div>
           <div className="header-stats">
+            <button
+              type="button"
+              className="btn btn-help-toggle"
+              onClick={() => setShowHowItWorks((prev) => !prev)}
+              aria-expanded={showHowItWorks}
+            >
+              {showHowItWorks ? 'Hide Help' : 'How It Works'}
+            </button>
             <div className={`api-status-pill ${liveStatusClass}`}>
               <Wifi size={14} />
               <span>{liveStatusText}</span>
@@ -304,6 +316,22 @@ function Dashboard() {
           </div>
         </div>
       </header>
+
+      {showHowItWorks && (
+        <section className="how-it-works-wrap">
+          <div className="how-it-works-card">
+            <h3>How This App Works</h3>
+            <p>This workflow discovers and ranks companies that are likely to need resilient backup internet connectivity.</p>
+            <ol>
+              <li>Search live (Google Maps) or query saved leads from Supabase.</li>
+              <li>Score each lead by business fit, criticality, and service viability.</li>
+              <li>Optionally enrich visible leads with contact intelligence and confidence scores.</li>
+              <li>Review in Map/List/Analytics and export filtered results to CSV.</li>
+            </ol>
+            <p className="how-note">Data is sourced from Google Maps, Yelp, and public company web pages. Validate contacts before outreach.</p>
+          </div>
+        </section>
+      )}
 
       {/* Controls */}
       <div className="dashboard-controls">
@@ -451,6 +479,18 @@ function Dashboard() {
         {activeTab === 'list'  && <LeadList  leads={filteredLeads} />}
         {activeTab === 'stats' && <StatsPanel stats={stats} leads={filteredLeads} contactConfidenceThreshold={minContactConfidence} />}
       </div>
+
+      <footer className="dashboard-footer">
+        <div className="dashboard-footer-inner">
+          <p>
+            Questions? Contact{' '}
+            <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+          </p>
+          <p>
+            Built for {appAttribution}. Lead intelligence powered by VetElecTech Lead Finder.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
