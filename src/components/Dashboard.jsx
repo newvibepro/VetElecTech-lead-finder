@@ -23,7 +23,7 @@ function Dashboard() {
   const [minContactConfidence, setMinContactConfidence] = useState(0);
   const [selectedIndustry, setSelectedIndustry] = useState('');
 
-  const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'your-email@example.com';
+  const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'newvibeproducts@gmail.com';
   const appAttribution = import.meta.env.VITE_APP_ATTRIBUTION || 'VetElecTech.com';
 
   const targetStates = [
