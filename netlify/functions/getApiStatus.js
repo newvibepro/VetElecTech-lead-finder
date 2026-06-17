@@ -5,6 +5,8 @@
  * Returns safe booleans indicating whether provider keys are configured.
  */
 
+const { version: appVersion } = require('../../package.json');
+
 exports.handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -23,6 +25,7 @@ exports.handler = async (event) => {
       statusCode: 200,
       headers,
       body: JSON.stringify({
+        appVersion,
         mapsConfigured,
         yelpConfigured,
         liveReady: mapsConfigured || yelpConfigured,

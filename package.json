@@ -1,6 +1,6 @@
 {
   "name": "vetelectech-lead-finder",
-  "version": "1.0.0",
+  "version": "1.0.10",
   "description": "Automated B2B lead discovery platform for VetElecTech.com — finds businesses needing Starlink backup network solutions",
   "main": "index.js",
   "scripts": {
@@ -14,7 +14,9 @@
     "scrape:demo": "node scripts/demo.js",
     "db:setup": "node scripts/setupDatabase.js",
     "db:seed": "node scripts/seedDatabase.js",
-    "test": "jest"
+    "test": "jest",
+    "version:next": "npm version patch --no-git-tag-version",
+    "version:show": "node -p \"require('./package.json').version\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",

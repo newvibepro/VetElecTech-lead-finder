@@ -100,6 +100,25 @@ npm run db:seed           # Seed 8 sample leads for testing
 
 ---
 
+## Release Versioning
+
+This project uses patch-style release increments:
+
+- Current baseline: `1.0.10`
+- Next release: `1.0.11`
+- Then `1.0.12`, etc.
+
+Commands:
+
+```bash
+npm run version:show      # prints current version
+npm run version:next      # bumps patch version (1.0.10 -> 1.0.11)
+```
+
+The UI header/footer displays both `UI vX.Y.Z` and `API vX.Y.Z` so you can verify backend deploy version after each push.
+
+---
+
 ## Netlify Deployment
 
 1. Push this repo to GitHub

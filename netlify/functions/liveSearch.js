@@ -203,12 +203,23 @@ exports.handler = async (event) => {
       rawModeEnabled,
       scoreTopN: finalScoreTopN,
       location,
+      mapsKeyPresent: hasMapsKey,
+      yelpKeyPresent: hasYelpKey,
       googleCount: 0,
       yelpCount: 0,
       saveEnabled: Boolean(process.env.SUPABASE_SERVICE_KEY),
       savedCount: 0,
-      saveErrors: 0
+      saveErrors: 0,
+      warnings: [],
+      providerErrors: []
     };
+
+    if (sourceFlags.maps && !hasMapsKey) {
+      diagnostics.warnings.push('Maps source requested but GOOGLE_MAPS_API_KEY is missing in this runtime.');
+    }
+    if (sourceFlags.yelp && !hasYelpKey) {
+      diagnostics.warnings.push('Yelp source requested but YELP_API_KEY is missing in this runtime.');
+    }
 
     if (sourceFlags.maps && hasMapsKey) {
       const maps = new GoogleMapsScraper(process.env.GOOGLE_MAPS_API_KEY);
@@ -219,6 +230,13 @@ exports.handler = async (event) => {
           diagnostics.googleCount += normalized.length;
           allRawLeads.push(...normalized);
         } catch (error) {
+          diagnostics.providerErrors.push({
+            source: 'maps',
+            term,
+            status: error.response?.status || null,
+            statusText: error.response?.statusText || null,
+            message: error.response?.data?.error?.message || error.message
+          });
           console.error(`liveSearch maps error for term "${term}":`, error.message);
         }
       }
@@ -233,6 +251,13 @@ exports.handler = async (event) => {
           diagnostics.yelpCount += normalized.length;
           allRawLeads.push(...normalized);
         } catch (error) {
+          diagnostics.providerErrors.push({
+            source: 'yelp',
+            term,
+            status: error.response?.status || null,
+            statusText: error.response?.statusText || null,
+            message: error.response?.data?.error?.description || error.message
+          });
           console.error(`liveSearch yelp error for term "${term}":`, error.message);
         }
       }
@@ -322,6 +347,11 @@ exports.handler = async (event) => {
     }
 
     let results = ranked;
+
+    diagnostics.rawLeadCount = allRawLeads.length;
+    diagnostics.dedupedCount = deduped.length;
+    diagnostics.returnedCount = ranked.length;
+    diagnostics.noProviderResults = (diagnostics.googleCount + diagnostics.yelpCount) === 0;
 
     if (includeContactsEnabled) {
       const supabaseRead = createClient(

@@ -9,7 +9,7 @@ function Dashboard() {
   const [leads, setLeads] = useState([]);
   const [filteredLeads, setFilteredLeads] = useState([]);
   const [stats, setStats] = useState(null);
-  const [apiStatus, setApiStatus] = useState({ loading: true, mapsConfigured: false, yelpConfigured: false });
+  const [apiStatus, setApiStatus] = useState({ loading: true, mapsConfigured: false, yelpConfigured: false, appVersion: 'unknown' });
   const [searchFeedback, setSearchFeedback] = useState({ error: '', diagnostics: null, mode: '', rawCount: 0 });
   const [enrichFeedback, setEnrichFeedback] = useState({ loading: false, message: '', error: '' });
   const [loading, setLoading] = useState(false);
@@ -25,6 +25,7 @@ function Dashboard() {
 
   const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'newvibeproducts@gmail.com';
   const appAttribution = import.meta.env.VITE_APP_ATTRIBUTION || 'VetElecTech.com';
+  const frontendVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
 
   const targetStates = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -109,11 +110,12 @@ function Dashboard() {
       setApiStatus({
         loading: false,
         mapsConfigured: Boolean(data.mapsConfigured),
-        yelpConfigured: Boolean(data.yelpConfigured)
+        yelpConfigured: Boolean(data.yelpConfigured),
+        appVersion: data.appVersion || 'unknown'
       });
     } catch (error) {
       console.error('Error fetching API status:', error);
-      setApiStatus({ loading: false, mapsConfigured: false, yelpConfigured: false });
+      setApiStatus({ loading: false, mapsConfigured: false, yelpConfigured: false, appVersion: 'unknown' });
     }
   };
 
@@ -284,6 +286,10 @@ function Dashboard() {
             </div>
           </div>
           <div className="header-stats">
+            <div className="version-pill" title="Frontend build and backend API versions">
+              <span>UI v{frontendVersion}</span>
+              <span>API v{apiStatus.appVersion}</span>
+            </div>
             <button
               type="button"
               className="btn btn-help-toggle"
@@ -449,7 +455,22 @@ function Dashboard() {
               {' | googleCount='}{searchFeedback.diagnostics?.googleCount || 0}
               {searchFeedback.mode === 'raw_maps' ? ` | scoredTopN=${searchFeedback.diagnostics?.scoreTopN || 0}` : ''}
               {' | state='}{searchFeedback.diagnostics?.location || 'N/A'}
+              {' | providerErrors='}{searchFeedback.diagnostics?.providerErrors?.length || 0}
+              {(searchFeedback.diagnostics?.warnings?.length || 0) > 0 ? ` | warnings=${searchFeedback.diagnostics.warnings.length}` : ''}
               {filteredLeads.length === 0 ? ' | tip: clear Industry filter and set Min Score to 0.' : ''}
+              {(searchFeedback.diagnostics?.providerErrors?.length || 0) > 0 && (
+                <div style={{ marginTop: '6px', fontWeight: 600, color: '#b91c1c' }}>
+                  Provider error: {searchFeedback.diagnostics.providerErrors[0]?.source || 'unknown'}
+                  {' | status='}{searchFeedback.diagnostics.providerErrors[0]?.status || 'N/A'}
+                  {' | term='}{searchFeedback.diagnostics.providerErrors[0]?.term || 'N/A'}
+                  {' | message='}{searchFeedback.diagnostics.providerErrors[0]?.message || 'N/A'}
+                </div>
+              )}
+              {(searchFeedback.diagnostics?.warnings?.length || 0) > 0 && (
+                <div style={{ marginTop: '4px', color: '#92400e' }}>
+                  Warning: {searchFeedback.diagnostics.warnings[0]}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -495,6 +516,9 @@ function Dashboard() {
           </p>
           <p>
             Built for {appAttribution}. Lead intelligence powered by VetElecTech Lead Finder.
+          </p>
+          <p>
+            Version: UI v{frontendVersion} | API v{apiStatus.appVersion}
           </p>
         </div>
       </footer>
