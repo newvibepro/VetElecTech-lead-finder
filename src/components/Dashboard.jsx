@@ -200,8 +200,30 @@ function Dashboard() {
         body: JSON.stringify({ leadIds: visibleIds, sourceIds: visibleSourceIds, onlyMissing: false })
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || 'Batch enrichment failed');
+      const rawText = await response.text();
+      let data = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        const nonJsonHint = rawText && rawText.trim().startsWith('<')
+          ? 'Server returned HTML (likely function error page or missing deploy).'
+          : '';
+        throw new Error(
+          data?.error ||
+          `Batch enrichment failed (status ${response.status}). ${nonJsonHint}`.trim()
+        );
+      }
+
+      if (!data) {
+        const nonJsonHint = rawText && rawText.trim().startsWith('<')
+          ? 'Server returned HTML instead of JSON. Redeploy may be required.'
+          : 'Server returned an empty/invalid JSON response.';
+        throw new Error(nonJsonHint);
+      }
 
       setEnrichFeedback({
         loading: false,
