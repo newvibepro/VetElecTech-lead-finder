@@ -49,6 +49,17 @@ const ACCESSIBILITY_KEYWORDS = [
   'website', 'online', 'email', 'contact us', 'request a quote', 'schedule'
 ];
 
+// Taxonomy groups for lead classification and downstream filtering.
+const TAXONOMY_KEYWORD_GROUPS = {
+  transport_logistics: ['truck stop', 'travel center', 'logistics', 'warehouse', 'distribution', 'freight', 'terminal', 'fleet'],
+  fuel_energy: ['gas station', 'service station', 'fuel', 'oil', 'pipeline', 'refinery', 'energy', 'utility'],
+  healthcare_critical: ['hospital', 'clinic', 'urgent care', 'medical center', 'healthcare', 'ems'],
+  hospitality_retail: ['hotel', 'motel', 'resort', 'rv park', 'convenience store', 'franchise', 'retail'],
+  industrial_field_ops: ['manufacturing', 'factory', 'industrial', 'construction', 'job site', 'field office', 'plant'],
+  rural_agriculture: ['rural', 'farm', 'ranch', 'agribusiness', 'off-grid', 'remote'],
+  public_sector_education: ['government', 'municipal', 'county', 'school', 'university', 'campus']
+};
+
 class ScoringEngine {
   constructor(weights = {}) {
     this.weights = {
@@ -64,6 +75,29 @@ class ScoringEngine {
     if (Math.abs(totalWeight - 100) > 0.01) {
       console.warn(`⚠️  Weights sum to ${totalWeight}, not 100`);
     }
+  }
+
+  /**
+   * Classify a lead into one or more keyword groups.
+   */
+  detectKeywordGroupTags(lead) {
+    const text = [
+      lead.name || '',
+      lead.description || '',
+      lead.store_type || '',
+      lead.business_type || '',
+      lead.categories?.join(' ') || '',
+      lead.keywords?.join(' ') || ''
+    ].join(' ').toLowerCase();
+
+    const tags = [];
+    for (const [group, terms] of Object.entries(TAXONOMY_KEYWORD_GROUPS)) {
+      if (terms.some((term) => text.includes(term))) {
+        tags.push(group);
+      }
+    }
+
+    return tags;
   }
 
   /**
@@ -274,7 +308,19 @@ class ScoringEngine {
    */
   scoreLead(lead) {
     const scores = this.calculateOverallScore(lead);
-    return { ...lead, ...scores };
+    const keywordGroupTags = this.detectKeywordGroupTags(lead);
+    const mergedKeywords = [...new Set([
+      ...(lead.keywords || []),
+      ...keywordGroupTags.map((group) => `group:${group}`)
+    ])];
+
+    return {
+      ...lead,
+      ...scores,
+      keywords: mergedKeywords,
+      keyword_group_tags: keywordGroupTags,
+      primary_taxonomy_group: keywordGroupTags[0] || null
+    };
   }
 }
 

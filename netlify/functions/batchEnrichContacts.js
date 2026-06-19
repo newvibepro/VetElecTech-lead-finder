@@ -57,16 +57,47 @@ exports.handler = async (event) => {
 
     let leads = [];
 
-    if (Array.isArray(body.leadIds) && body.leadIds.length) {
+    if ((Array.isArray(body.leadIds) && body.leadIds.length) || (Array.isArray(body.sourceIds) && body.sourceIds.length)) {
       const leadIds = body.leadIds
         .map((id) => parseInt(id, 10))
         .filter((id) => Number.isFinite(id))
         .slice(0, maxLeads);
 
+      const sourceIds = (Array.isArray(body.sourceIds) ? body.sourceIds : [])
+        .map((sourceId) => String(sourceId || '').trim())
+        .filter(Boolean)
+        .slice(0, maxLeads);
+
+      let idsFromSource = [];
+      if (sourceIds.length) {
+        const { data: bySource, error: bySourceError } = await supabase
+          .from('leads')
+          .select('id, source_id')
+          .in('source_id', sourceIds);
+        if (bySourceError) throw bySourceError;
+        idsFromSource = (bySource || []).map((row) => row.id).filter(Boolean);
+      }
+
+      const uniqueLeadIds = [...new Set([...leadIds, ...idsFromSource])].slice(0, maxLeads);
+
+      if (!uniqueLeadIds.length) {
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            leadsAttempted: 0,
+            contactsCreated: 0,
+            errorsCount: 0,
+            durationMs: 0,
+            note: 'No matching saved leads found for provided leadIds/sourceIds.'
+          })
+        };
+      }
+
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .in('id', leadIds)
+        .in('id', uniqueLeadIds)
         .order('overall_score', { ascending: false });
 
       if (error) throw error;

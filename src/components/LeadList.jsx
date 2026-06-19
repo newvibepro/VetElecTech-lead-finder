@@ -110,6 +110,9 @@ function LeadList({ leads = [] }) {
                   {lead.business_type && (
                     <span className="industry-tag">{lead.business_type.replace('_', ' ')}</span>
                   )}
+                  {lead.primary_taxonomy_group && (
+                    <span className="taxonomy-tag">{lead.primary_taxonomy_group.replace(/_/g, ' ')}</span>
+                  )}
                 </div>
               </div>
 

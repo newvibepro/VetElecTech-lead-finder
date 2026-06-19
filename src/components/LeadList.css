@@ -131,6 +131,19 @@
   text-transform: capitalize;
 }
 
+.taxonomy-tag {
+  display: inline-block;
+  margin-top: 5px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  background: #e0f2fe;
+  color: #075985;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
 /* Score bars */
 .score-bars {
   display: flex;

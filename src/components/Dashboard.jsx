@@ -182,8 +182,13 @@ function Dashboard() {
       .filter(Boolean)
       .slice(0, 150);
 
-    if (visibleIds.length === 0) {
-      setEnrichFeedback({ loading: false, message: '', error: 'No visible saved leads with IDs to enrich.' });
+    const visibleSourceIds = filteredLeads
+      .map((lead) => lead.source_id)
+      .filter(Boolean)
+      .slice(0, 150);
+
+    if (visibleIds.length === 0 && visibleSourceIds.length === 0) {
+      setEnrichFeedback({ loading: false, message: '', error: 'No visible leads to enrich. Run a search first.' });
       return;
     }
 
@@ -192,7 +197,7 @@ function Dashboard() {
       const response = await fetch('/.netlify/functions/batchEnrichContacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadIds: visibleIds, onlyMissing: false })
+        body: JSON.stringify({ leadIds: visibleIds, sourceIds: visibleSourceIds, onlyMissing: false })
       });
 
       const data = await response.json();
