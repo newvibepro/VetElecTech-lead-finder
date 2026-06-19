@@ -51,13 +51,54 @@ const ACCESSIBILITY_KEYWORDS = [
 
 // Taxonomy groups for lead classification and downstream filtering.
 const TAXONOMY_KEYWORD_GROUPS = {
-  transport_logistics: ['truck stop', 'travel center', 'logistics', 'warehouse', 'distribution', 'freight', 'terminal', 'fleet'],
-  fuel_energy: ['gas station', 'service station', 'fuel', 'oil', 'pipeline', 'refinery', 'energy', 'utility'],
-  healthcare_critical: ['hospital', 'clinic', 'urgent care', 'medical center', 'healthcare', 'ems'],
-  hospitality_retail: ['hotel', 'motel', 'resort', 'rv park', 'convenience store', 'franchise', 'retail'],
-  industrial_field_ops: ['manufacturing', 'factory', 'industrial', 'construction', 'job site', 'field office', 'plant'],
-  rural_agriculture: ['rural', 'farm', 'ranch', 'agribusiness', 'off-grid', 'remote'],
-  public_sector_education: ['government', 'municipal', 'county', 'school', 'university', 'campus']
+  transport_logistics: [
+    'truck stop', 'travel center', 'truck parking', 'logistics', 'warehouse', 'distribution',
+    'distribution center', 'freight', 'shipping', 'trucking', 'fleet', 'dispatch',
+    'intermodal', 'rail yard', 'loading dock', 'cross-dock', 'terminal',
+    'pilot', 'flying j', 'loves', "love's", 'travelcenters of america', 'ta truck stop', 'petro'
+  ],
+  fuel_energy: [
+    'gas station', 'service station', 'fuel', 'diesel', 'fuel island', 'truck fuel',
+    'oil', 'pipeline', 'refinery', 'petroleum', 'energy', 'utility', 'power substation',
+    'power generation', 'solar farm', 'wind farm', 'charging station', 'ev charging'
+  ],
+  telecom_sites: [
+    'telecom', 'wireless tower', 'cell tower', 'tower site', 'microwave link', 'isp',
+    'wisp', 'network operations center', 'noc', 'headend', 'broadband provider',
+    'fiber hut', 'co-location', 'telecommunications'
+  ],
+  healthcare_critical: [
+    'hospital', 'clinic', 'urgent care', 'medical center', 'healthcare', 'ems',
+    'ambulance', 'dialysis', 'imaging center', 'surgery center', 'trauma center',
+    'pharmacy', 'behavioral health', 'rehabilitation hospital'
+  ],
+  emergency_services: [
+    'fire station', 'police department', 'sheriff', '911', 'dispatch center',
+    'emergency management', 'public safety', 'rescue squad', 'search and rescue',
+    'eoc', 'communications center'
+  ],
+  hospitality_retail: [
+    'hotel', 'motel', 'resort', 'rv park', 'campground', 'convenience store',
+    'travel plaza', 'franchise', 'retail', 'point of sale', 'pos', 'quick service restaurant',
+    'qsr', 'casino', 'conference center'
+  ],
+  industrial_field_ops: [
+    'manufacturing', 'factory', 'industrial', 'construction', 'job site', 'field office',
+    'plant', 'processing plant', 'mine site', 'quarry', 'oilfield', 'well site',
+    'remote operations', 'scada', 'batch plant'
+  ],
+  rural_agriculture: [
+    'rural', 'farm', 'ranch', 'agribusiness', 'off-grid', 'remote', 'grain elevator',
+    'co-op', 'cooperative', 'feed mill', 'livestock', 'irrigation district', 'ag service'
+  ],
+  marinas_ports: [
+    'marina', 'harbor', 'port', 'dock', 'boatyard', 'shipyard', 'freight port',
+    'inland port', 'barge terminal', 'coast guard', 'waterside terminal'
+  ],
+  public_sector_education: [
+    'government', 'municipal', 'county', 'state office', 'public works', 'school',
+    'university', 'campus', 'community college', 'k-12', 'district office'
+  }
 };
 
 class ScoringEngine {
@@ -81,7 +122,7 @@ class ScoringEngine {
    * Classify a lead into one or more keyword groups.
    */
   detectKeywordGroupTags(lead) {
-    const text = [
+    const baseText = [
       lead.name || '',
       lead.description || '',
       lead.store_type || '',
@@ -90,9 +131,18 @@ class ScoringEngine {
       lead.keywords?.join(' ') || ''
     ].join(' ').toLowerCase();
 
+    // Normalize punctuation for brand-name variants like Love's vs Loves.
+    const normalizedText = baseText
+      .replace(/[’']/g, '')
+      .replace(/[^a-z0-9\s-]/g, ' ')
+      .replace(/\s+/g, ' ');
+
     const tags = [];
     for (const [group, terms] of Object.entries(TAXONOMY_KEYWORD_GROUPS)) {
-      if (terms.some((term) => text.includes(term))) {
+      if (terms.some((term) => {
+        const normalizedTerm = String(term || '').toLowerCase().replace(/[’']/g, '');
+        return normalizedText.includes(normalizedTerm);
+      })) {
         tags.push(group);
       }
     }
